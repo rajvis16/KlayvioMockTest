@@ -324,7 +324,9 @@ class TaskTrackerImpl implements TaskTracker {
             }
 
             return cmp;
-        }).map(task -> task.taskId).limit(limit).collect(Collectors.toCollection(ArrayList::new));
+        }).map(task -> task.taskId)
+                .limit(limit)
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private static class Task {
