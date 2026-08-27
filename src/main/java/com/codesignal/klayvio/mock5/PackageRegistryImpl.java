@@ -409,70 +409,45 @@ class PackageRegistryImpl implements PackageRegistry {
     @Override
     public List<String> getBlockedPackages(int limit) {
 
-        List<BlockedPackage> blockedPackages = new ArrayList<>();
+        List<Package> blockedPackages =
+                packageRegistrationMap.values()
+                        .stream()
+                        .filter(p -> !p.delivered)
+                        .filter(p -> countUndeliveredDependencies(p) > 0)
+                        .toList();
 
-        for (Package pack : packageRegistrationMap.values()) {
+        return blockedPackages.stream().sorted((p1, p2) -> {
 
-            // Only undelivered packages can be blocked.
-            if (pack.delivered) {
-                continue;
-            }
+                            int count1 = countUndeliveredDependencies(p1);
+                            int count2 = countUndeliveredDependencies(p2);
 
-            int blockedCount = 0;
+                            int cmp = Integer.compare(count2, count1);
+                            if (cmp == 0) {
+                                cmp = Integer.compare(p2.weight, p1.weight);
+                                if (cmp == 0) {
+                                    return p1.packageId.compareTo(p2.packageId);
+                                }
+                            }
 
-            for (String dependencyPackageId : pack.dependencyPackageIds) {
+                            return cmp;
+                })
+                .map(p -> p.packageId)
+                .limit(limit)
+                .toList();
+    }
 
-                Package dependency =
-                        packageRegistrationMap.get(dependencyPackageId);
+    private int countUndeliveredDependencies(Package pack) {
 
-                if (dependency != null && !dependency.delivered) {
-                    blockedCount++;
-                }
-            }
+        int undeliveredCount = 0;
 
-            // No incomplete dependencies -> ready, not blocked.
-            if (blockedCount > 0) {
-                blockedPackages.add(
-                        new BlockedPackage(pack, blockedCount)
-                );
+        for (String packageId : pack.dependencyPackageIds) {
+            Package p = packageRegistrationMap.get(packageId);
+            if (p != null && !p.delivered) {
+                undeliveredCount++;
             }
         }
 
-        blockedPackages.sort((b1, b2) -> {
-
-            // 1. More incomplete dependencies first.
-            int cmp = Integer.compare(
-                    b2.blockedCount,
-                    b1.blockedCount
-            );
-
-            // 2. Higher package weight first.
-            if (cmp == 0) {
-                cmp = Integer.compare(
-                        b2.pack.weight,
-                        b1.pack.weight
-                );
-            }
-
-            // 3. packageId alphabetically ascending.
-            if (cmp == 0) {
-                cmp = b1.pack.packageId.compareTo(
-                        b2.pack.packageId
-                );
-            }
-
-            return cmp;
-        });
-
-        int size = Math.min(limit, blockedPackages.size());
-
-        List<String> result = new ArrayList<>();
-
-        for (int i = 0; i < size; i++) {
-            result.add(blockedPackages.get(i).pack.packageId);
-        }
-
-        return result;
+        return undeliveredCount;
     }
 
     private static class Package {
@@ -488,17 +463,6 @@ class PackageRegistryImpl implements PackageRegistry {
             this.destination = destination;
             this.weight = weight;
 
-        }
-    }
-
-    private static class BlockedPackage {
-
-        Package pack;
-        int blockedCount;
-
-        BlockedPackage(Package pack, int blockedCount) {
-            this.pack = pack;
-            this.blockedCount = blockedCount;
         }
     }
 }

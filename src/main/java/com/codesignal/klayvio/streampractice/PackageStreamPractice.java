@@ -43,6 +43,9 @@ public class PackageStreamPractice {
         pendingWeight.put("Seattle", 15);
 
         System.out.println(sortDestinationsByWeight(pendingWeight));
+        System.out.println(countPackagesByDestination(packages));
+        System.out.println(countUndeliveredPackagesByDestination(packages));
+        System.out.println(getBusiestDestinationsByPackageCount(packages));
     }
 
     private static List<Package> createPackages() {
@@ -247,6 +250,44 @@ public class PackageStreamPractice {
             }
             return cmp;
         }).map(p -> p.getKey()).toList();
+    }
+
+    // Exercise 20:
+    // Return package count grouped by destination.
+    private static Map<String, Long> countPackagesByDestination(List<Package> packages) {
+        return packages
+                .stream()
+                .collect(Collectors.groupingBy(p -> p.destination, Collectors.counting()));
+    }
+
+    // Exercise 21:
+    // Count undelivered packages grouped by destination.
+    private static Map<String, Long> countUndeliveredPackagesByDestination(List<Package> packages) {
+        return packages
+                .stream()
+                .filter(p -> !p.delivered)
+                .collect(Collectors.groupingBy(p -> p.destination, Collectors.counting()));
+    }
+
+    // Exercise 22:
+    // Return destinations ordered by:
+    // 1. number of undelivered packages DESCENDING
+    // 2. destination ASCENDING when counts are equal
+    private static List<String> getBusiestDestinationsByPackageCount(List<Package> packages) {
+        return packages
+                .stream()
+                .filter(p -> !p.delivered)
+                .collect(Collectors.groupingBy(p -> p.destination, Collectors.counting()))
+                .entrySet()
+                .stream()
+                .sorted((p1, p2) -> {
+                    int cmp = Long.compare(p2.getValue(), p1.getValue());
+                    if (cmp == 0) {
+                        return p1.getKey().compareTo(p2.getKey());
+                    }
+                    return cmp;
+                }).map(p -> p.getKey())
+                .toList();
     }
 
     private static class Package {
